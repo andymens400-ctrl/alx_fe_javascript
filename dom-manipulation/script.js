@@ -1,6 +1,6 @@
-// --- Dynamic Quote Generator with LocalStorage, SessionStorage, and JSON Import/Export ---
+// --- Dynamic Quote Generator with LocalStorage, SessionStorage, Filtering, and JSON Import/Export ---
 
-// Load quotes from localStorage or use default ones
+// Load quotes from localStorage or use defaults
 let quotes = JSON.parse(localStorage.getItem("quotes")) || [
   { text: "The best way to get started is to quit talking and begin doing.", category: "Motivation" },
   { text: "In the middle of difficulty lies opportunity.", category: "Inspiration" },
@@ -33,7 +33,7 @@ function showRandomQuote(category = null) {
 
 // --- Create Add Quote Form ---
 function createAddQuoteForm() {
-  if (document.getElementById("addQuoteForm")) return; // avoid duplicates
+  if (document.getElementById("addQuoteForm")) return; // prevent duplicate forms
 
   const form = document.createElement("div");
   form.id = "addQuoteForm";
@@ -69,36 +69,36 @@ function addQuote() {
   textEl.value = "";
   catEl.value = "";
 
-  populateCategories(); // ✅ update category list dynamically
+  populateCategories(); // update dropdown
   showRandomQuote(category); // show quote from new category
 }
 
 // --- Populate Categories Dropdown ---
 function populateCategories() {
-  const categorySelect = document.getElementById("categorySelect");
-  if (!categorySelect) return;
+  const categoryFilter = document.getElementById("categoryFilter");
+  if (!categoryFilter) return;
 
-  // Extract unique categories
+  // Get unique categories + "All"
   const categories = ["All", ...new Set(quotes.map(q => q.category))];
 
   // Clear dropdown and repopulate
-  categorySelect.innerHTML = "";
+  categoryFilter.innerHTML = "";
   categories.forEach(cat => {
     const option = document.createElement("option");
     option.value = cat;
     option.textContent = cat;
-    categorySelect.appendChild(option);
+    categoryFilter.appendChild(option);
   });
 
   // Restore saved filter
   const savedCategory = localStorage.getItem("selectedCategory");
   if (savedCategory && categories.includes(savedCategory)) {
-    categorySelect.value = savedCategory;
+    categoryFilter.value = savedCategory;
   }
 
-  // Update displayed quote when category changes
-  categorySelect.addEventListener("change", () => {
-    const selected = categorySelect.value;
+  // Filter quotes when category changes
+  categoryFilter.addEventListener("change", () => {
+    const selected = categoryFilter.value;
     localStorage.setItem("selectedCategory", selected);
     showRandomQuote(selected);
   });
@@ -117,7 +117,7 @@ function restoreLastQuote() {
   }
 }
 
-// --- Export Quotes as JSON using Blob ---
+// --- Export Quotes as JSON ---
 function exportQuotes() {
   const jsonStr = JSON.stringify(quotes, null, 2);
   const blob = new Blob([jsonStr], { type: "application/json" });
@@ -136,8 +136,8 @@ function importFromJsonFile(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  const fileReader = new FileReader();
-  fileReader.onload = function (e) {
+  const reader = new FileReader();
+  reader.onload = function (e) {
     try {
       const importedQuotes = JSON.parse(e.target.result);
       if (!Array.isArray(importedQuotes)) {
@@ -147,7 +147,7 @@ function importFromJsonFile(event) {
 
       quotes.push(...importedQuotes);
       saveQuotes();
-      populateCategories(); // ✅ update categories after import
+      populateCategories(); // update dropdown dynamically
 
       alert("Quotes imported successfully!");
       showRandomQuote();
@@ -155,12 +155,12 @@ function importFromJsonFile(event) {
       alert("Error reading file: Invalid JSON.");
     }
   };
-  fileReader.readAsText(file);
+  reader.readAsText(file);
 }
 
 // --- Event Listeners ---
 document.getElementById("newQuote").addEventListener("click", () => {
-  const selected = document.getElementById("categorySelect")?.value || "All";
+  const selected = document.getElementById("categoryFilter")?.value || "All";
   showRandomQuote(selected);
 });
 document.getElementById("exportBtn").addEventListener("click", exportQuotes);
