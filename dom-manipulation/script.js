@@ -1,6 +1,5 @@
 // --- Dynamic Quote Generator with LocalStorage, SessionStorage, Filtering, JSON Import/Export, and Server Sync ---
 
-// Load quotes from localStorage or use defaults
 let quotes = JSON.parse(localStorage.getItem("quotes")) || [
   { text: "The best way to get started is to quit talking and begin doing.", category: "Motivation" },
   { text: "In the middle of difficulty lies opportunity.", category: "Inspiration" },
@@ -29,7 +28,6 @@ function showRandomQuote(category = null) {
   const random = filtered[Math.floor(Math.random() * filtered.length)];
   quoteDisplay.innerHTML = `"${random.text}"<br><em>— ${random.category}</em>`;
 
-  // Save last viewed quote in sessionStorage
   sessionStorage.setItem("lastQuote", JSON.stringify(random));
 }
 
@@ -53,7 +51,7 @@ function createAddQuoteForm() {
 }
 
 // --- Add New Quote ---
-function addQuote() {
+async function addQuote() {
   const textEl = document.getElementById("newQuoteText");
   const catEl = document.getElementById("newQuoteCategory");
   const text = textEl.value.trim();
@@ -64,8 +62,23 @@ function addQuote() {
     return;
   }
 
-  quotes.push({ text, category });
+  const newQuote = { text, category };
+  quotes.push(newQuote);
   saveQuotes();
+
+  // Simulate sending new quote to the server
+  try {
+    await fetch("https://jsonplaceholder.typicode.com/posts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(newQuote)
+    });
+    console.log("Quote synced to server:", newQuote);
+  } catch (error) {
+    console.error("Failed to sync with server:", error);
+  }
 
   alert("Quote added successfully!");
   textEl.value = "";
@@ -161,15 +174,12 @@ function importFromJsonFile(event) {
   reader.readAsText(file);
 }
 
-// --- SERVER SYNC SIMULATION ---
-
-// Fetch quotes from simulated server (JSONPlaceholder or mock endpoint)
+// --- Server Sync Simulation ---
 async function fetchQuotesFromServer() {
   try {
     const response = await fetch("https://jsonplaceholder.typicode.com/posts?_limit=5");
     const serverData = await response.json();
 
-    // Convert mock posts to quote-like structure
     const serverQuotes = serverData.map(post => ({
       text: post.title,
       category: "Server"
@@ -196,13 +206,13 @@ function resolveConflicts(serverQuotes) {
   }
 }
 
-// Periodically sync with server
+// Periodic sync
 function startAutoSync() {
-  fetchQuotesFromServer(); // initial sync
-  setInterval(fetchQuotesFromServer, 30000); // every 30 seconds
+  fetchQuotesFromServer();
+  setInterval(fetchQuotesFromServer, 30000);
 }
 
-// Display sync notification
+// Show sync notification
 function showSyncNotification(message) {
   const note = document.createElement("div");
   note.textContent = message;
