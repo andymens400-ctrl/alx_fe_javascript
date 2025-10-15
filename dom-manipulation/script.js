@@ -66,7 +66,7 @@ async function addQuote() {
   quotes.push(newQuote);
   saveQuotes();
 
-  // Simulate sending new quote to the server
+  // Attempt to sync new quote with server immediately
   try {
     await fetch("https://jsonplaceholder.typicode.com/posts", {
       method: "POST",
@@ -174,7 +174,7 @@ function importFromJsonFile(event) {
   reader.readAsText(file);
 }
 
-// --- Server Sync Simulation ---
+// --- Fetch Quotes from Simulated Server ---
 async function fetchQuotesFromServer() {
   try {
     const response = await fetch("https://jsonplaceholder.typicode.com/posts?_limit=5");
@@ -191,7 +191,32 @@ async function fetchQuotesFromServer() {
   }
 }
 
-// Conflict resolution: server data takes precedence
+// --- Sync Quotes (NEW FUNCTION) ---
+async function syncQuotes() {
+  showSyncNotification("Syncing with server...");
+
+  // 1. Push local quotes to server
+  for (const q of quotes) {
+    try {
+      await fetch("https://jsonplaceholder.typicode.com/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(q)
+      });
+    } catch (err) {
+      console.error("Failed to upload quote:", q, err);
+    }
+  }
+
+  // 2. Fetch new data from server and resolve conflicts
+  await fetchQuotesFromServer();
+
+  showSyncNotification("Quotes synced successfully!");
+}
+
+// --- Conflict Resolution (Server Takes Precedence) ---
 function resolveConflicts(serverQuotes) {
   const localTexts = new Set(quotes.map(q => q.text));
   const newQuotes = serverQuotes.filter(q => !localTexts.has(q.text));
@@ -201,18 +226,11 @@ function resolveConflicts(serverQuotes) {
     saveQuotes();
     populateCategories();
     showRandomQuote();
-
     showSyncNotification(`Synced ${newQuotes.length} new quotes from server.`);
   }
 }
 
-// Periodic sync
-function startAutoSync() {
-  fetchQuotesFromServer();
-  setInterval(fetchQuotesFromServer, 30000);
-}
-
-// Show sync notification
+// --- Show Sync Notification ---
 function showSyncNotification(message) {
   const note = document.createElement("div");
   note.textContent = message;
@@ -225,9 +243,16 @@ function showSyncNotification(message) {
     padding: 8px 12px;
     border-radius: 5px;
     opacity: 0.9;
+    z-index: 1000;
   `;
   document.body.appendChild(note);
   setTimeout(() => note.remove(), 4000);
+}
+
+// --- Periodic Sync ---
+function startAutoSync() {
+  fetchQuotesFromServer();
+  setInterval(syncQuotes, 30000);
 }
 
 // --- Event Listeners ---
