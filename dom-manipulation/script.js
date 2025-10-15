@@ -1,5 +1,6 @@
-// --- Dynamic Quote Generator with LocalStorage, SessionStorage, Filtering, JSON Import/Export, and Server Sync ---
+// --- Dynamic Quote Generator with LocalStorage
 
+// Load quotes from localStorage or defaults
 let quotes = JSON.parse(localStorage.getItem("quotes")) || [
   { text: "The best way to get started is to quit talking and begin doing.", category: "Motivation" },
   { text: "In the middle of difficulty lies opportunity.", category: "Inspiration" },
@@ -11,7 +12,7 @@ function saveQuotes() {
   localStorage.setItem("quotes", JSON.stringify(quotes));
 }
 
-// --- Show Random Quote ---
+//  Show Random Quote 
 function showRandomQuote(category = null) {
   const filtered = category && category !== "All"
     ? quotes.filter(q => q.category === category)
@@ -28,10 +29,11 @@ function showRandomQuote(category = null) {
   const random = filtered[Math.floor(Math.random() * filtered.length)];
   quoteDisplay.innerHTML = `"${random.text}"<br><em>— ${random.category}</em>`;
 
+  // Save last viewed quote in sessionStorage
   sessionStorage.setItem("lastQuote", JSON.stringify(random));
 }
 
-// --- Create Add Quote Form ---
+//  Create Add Quote Form 
 function createAddQuoteForm() {
   if (document.getElementById("addQuoteForm")) return;
 
@@ -50,8 +52,8 @@ function createAddQuoteForm() {
   document.getElementById("cancelForm").addEventListener("click", () => form.remove());
 }
 
-// --- Add New Quote ---
-async function addQuote() {
+//  Add New Quote 
+function addQuote() {
   const textEl = document.getElementById("newQuoteText");
   const catEl = document.getElementById("newQuoteCategory");
   const text = textEl.value.trim();
@@ -62,23 +64,8 @@ async function addQuote() {
     return;
   }
 
-  const newQuote = { text, category };
-  quotes.push(newQuote);
+  quotes.push({ text, category });
   saveQuotes();
-
-  // Attempt to sync new quote with server immediately
-  try {
-    await fetch("https://jsonplaceholder.typicode.com/posts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(newQuote)
-    });
-    console.log("Quote synced to server:", newQuote);
-  } catch (error) {
-    console.error("Failed to sync with server:", error);
-  }
 
   alert("Quote added successfully!");
   textEl.value = "";
@@ -88,14 +75,14 @@ async function addQuote() {
   showRandomQuote(category);
 }
 
-// --- Populate Categories Dropdown ---
+//  Populate Categories Dropdown 
 function populateCategories() {
   const categoryFilter = document.getElementById("categoryFilter");
   if (!categoryFilter) return;
 
   const categories = ["All", ...new Set(quotes.map(q => q.category))];
-
   categoryFilter.innerHTML = "";
+
   categories.forEach(cat => {
     const option = document.createElement("option");
     option.value = cat;
@@ -111,7 +98,7 @@ function populateCategories() {
   categoryFilter.addEventListener("change", filterQuotes);
 }
 
-// --- Filter Quotes ---
+//  Filter Quotes 
 function filterQuotes() {
   const categoryFilter = document.getElementById("categoryFilter");
   const selected = categoryFilter ? categoryFilter.value : "All";
@@ -119,7 +106,7 @@ function filterQuotes() {
   showRandomQuote(selected);
 }
 
-// --- Restore Last Viewed Quote ---
+//  Restore Last Quote 
 function restoreLastQuote() {
   const lastQuote = JSON.parse(sessionStorage.getItem("lastQuote"));
   const savedCategory = localStorage.getItem("selectedCategory") || "All";
@@ -134,7 +121,7 @@ function restoreLastQuote() {
   }
 }
 
-// --- Export Quotes as JSON ---
+// Export Quotes 
 function exportQuotes() {
   const jsonStr = JSON.stringify(quotes, null, 2);
   const blob = new Blob([jsonStr], { type: "application/json" });
@@ -148,7 +135,7 @@ function exportQuotes() {
   URL.revokeObjectURL(url);
 }
 
-// --- Import Quotes from JSON File ---
+//  Import Quotes 
 function importFromJsonFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -174,95 +161,62 @@ function importFromJsonFile(event) {
   reader.readAsText(file);
 }
 
-// --- Fetch Quotes from Simulated Server ---
+//  Fetch Quotes from Mock Server (Simulated) 
 async function fetchQuotesFromServer() {
   try {
-    const response = await fetch("https://jsonplaceholder.typicode.com/posts?_limit=5");
-    const serverData = await response.json();
+    const res = await fetch("https://jsonplaceholder.typicode.com/posts?_limit=3");
+    const data = await res.json();
 
-    const serverQuotes = serverData.map(post => ({
-      text: post.title,
+    // Convert mock data into quote format
+    const serverQuotes = data.map(item => ({
+      text: item.title,
       category: "Server"
     }));
 
-    resolveConflicts(serverQuotes);
-  } catch (error) {
-    console.error("Failed to fetch from server:", error);
-  }
-}
-
-// --- Sync Quotes (NEW FUNCTION) ---
-async function syncQuotes() {
-  showSyncNotification("Syncing with server...");
-
-  // 1. Push local quotes to server
-  for (const q of quotes) {
-    try {
-      await fetch("https://jsonplaceholder.typicode.com/posts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(q)
-      });
-    } catch (err) {
-      console.error("Failed to upload quote:", q, err);
-    }
-  }
-
-  // 2. Fetch new data from server and resolve conflicts
-  await fetchQuotesFromServer();
-
-  showSyncNotification("Quotes synced successfully!");
-}
-
-// --- Conflict Resolution (Server Takes Precedence) ---
-function resolveConflicts(serverQuotes) {
-  const localTexts = new Set(quotes.map(q => q.text));
-  const newQuotes = serverQuotes.filter(q => !localTexts.has(q.text));
-
-  if (newQuotes.length > 0) {
-    quotes.push(...newQuotes);
+    // Merge new server quotes (simulate conflict resolution: server wins)
+    quotes = [...serverQuotes, ...quotes];
     saveQuotes();
     populateCategories();
     showRandomQuote();
-    showSyncNotification(`Synced ${newQuotes.length} new quotes from server.`);
+  } catch (error) {
+    console.error("Error fetching from server:", error);
   }
 }
 
-// --- Show Sync Notification ---
-function showSyncNotification(message) {
-  const note = document.createElement("div");
-  note.textContent = message;
-  note.style.cssText = `
-    position: fixed;
-    bottom: 10px;
-    right: 10px;
-    background: #222;
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 5px;
-    opacity: 0.9;
-    z-index: 1000;
-  `;
-  document.body.appendChild(note);
-  setTimeout(() => note.remove(), 4000);
+// Sync Quotes to Server (Simulated POST Request)
+async function syncQuotes() {
+  try {
+    const res = await fetch("https://jsonplaceholder.typicode.com/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(quotes)
+    });
+
+    if (res.ok) {
+      console.log("Quotes synced with server!");
+      alert("Quotes synced with server!");
+    } else {
+      console.warn("Sync failed. Server returned:", res.status);
+    }
+  } catch (error) {
+    console.error("Sync error:", error);
+  }
 }
 
-// --- Periodic Sync ---
-function startAutoSync() {
+// Periodic Sync (Every 30 Seconds)
+setInterval(() => {
   fetchQuotesFromServer();
-  setInterval(syncQuotes, 30000);
-}
+  syncQuotes();
+}, 30000);
 
-// --- Event Listeners ---
+// Event Listeners 
 document.getElementById("newQuote").addEventListener("click", () => {
   const selected = document.getElementById("categoryFilter")?.value || "All";
   showRandomQuote(selected);
 });
 document.getElementById("exportBtn").addEventListener("click", exportQuotes);
 
-// --- Initialize ---
+//Initialize 
 populateCategories();
 restoreLastQuote();
-startAutoSync();
+fetchQuotesFromServer();
